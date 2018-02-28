@@ -1,0 +1,48 @@
+import urllib.request
+import json
+import csv
+from tqdm import tqdm
+
+#输入高德POI对应编号id
+typeid=id
+#输入你的高德api的key
+yourkey=key
+#输入POI搜索区域边界经纬度坐标
+area_cor=[longitude_min,longitude_max,latitude_min,latitude_max]
+#输入区域分割数量,100*100一般够用
+grid=[100,100] 
+
+#计算区域尺寸
+grid_size=[(area_cor[1]-area_cor[0])/grid[0],(area_cor[3]-area_cor[2])/grid[1]]
+
+#初始化爬取POI数量
+n=0
+#对分割好的区域依次爬取POI并写入到CSV文件
+#和需要爬取的poi对应的编号
+
+csvfile=open('yourfilename.csv','w',newline='')
+writer=csv.writer(csvfile) 
+writer.writerow(['name','longitude','latitude','category','city'])
+for i in tqdm(range(0,grid[0])):
+    long_min=area_cor[0]+grid_size[0]*i
+    long_max=area_cor[0]+grid_size[0]*(i+1)
+    for j in range(0,grid[1]):
+        for p in range(1,101):
+            lat_min=area_cor[2]+grid_size[1]*j
+            lat_max=area_cor[2]+grid_size[1]*(j+1)
+            polygon='%f,%f|%f,%f'%(long_min,lat_max,long_max,lat_min)
+            url='http://restapi.amap.com/v3/place/polygon?&types='+typeid+'&offset=20&page='+str(p)+'&key='+yourkey+'&extensions=base&polygon='+polygon
+            data=urllib.request.urlopen(url)
+            ajson=json.loads(data.read())
+            n+=int(ajson['count'])
+            if len(ajson['pois'])==0:
+                break
+            for m in range(0,len(ajson['pois'])):
+                name=ajson['pois'][m]['name']
+                location=ajson['pois'][m]['location'].split(',')
+                t=ajson['pois'][m]['type']
+                c=ajson['pois'][m]['cityname']
+                writer.writerow([name,location[0],location[1],t,c])
+                
+print(n)
+csvfile.close()
